@@ -6,9 +6,8 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load env variables
 load_dotenv()
-
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 openai.api_key = OPENAI_API_KEY
@@ -20,9 +19,9 @@ BARSIK_STYLE = (
     "Always reply in English. Keep it short, bold, and hilarious. Use slang, emojis, and a confident tone."
 )
 
-app = Flask(__name__)
+flask_app = Flask(__name__)
 
-@app.route("/")
+@flask_app.route("/")
 def home():
     return "Barsik Meme Bot is alive!"
 
@@ -48,15 +47,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print("OpenAI Error:", e)
 
 async def main():
-    telegram_app = Application.builder().token(TELEGRAM_TOKEN).build()
-    telegram_app.add_handler(CommandHandler("start", start))
-    telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app = Application.builder().token(TELEGRAM_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     print("🐾 Barsik Meme Bot is running via polling...")
-    await telegram_app.run_polling()
+    await app.run_polling()
 
 if __name__ == "__main__":
-    # Avvia Flask in un thread separato per farlo restare vivo su Render
     import threading
-    threading.Thread(target=lambda: app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))).start()
-    # Avvia il bot nel thread principale
+    threading.Thread(target=lambda: flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))).start()
     asyncio.run(main())

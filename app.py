@@ -5,6 +5,7 @@ from flask import Flask
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 from dotenv import load_dotenv
+import threading
 
 load_dotenv()
 
@@ -49,18 +50,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ Barsik is having a bad meme day.")
         print("OpenAI Error:", e)
 
-async def main():
-    app = Application.builder().token(TELEGRAM_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("ping", ping))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+def run_flask():
+    flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+
+def main():
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("ping", ping))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
     print("🐾 Barsik Meme Bot is running via polling...")
 
-    # Avvia Flask e bot insieme
-    loop = asyncio.get_running_loop()
-    flask_task = asyncio.to_thread(lambda: flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000))))
-    polling_task = app.run_polling(allowed_updates=Update.ALL_TYPES)
-    await asyncio.gather(flask_task, polling_task)
+    loop = asyncio.get_event_loop()
+    loop.create_task(application.run_polling())
+
+    threading.Thread(target=run_flask).start()
+
+    loop.run_forever()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
+

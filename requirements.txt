@@ -1,0 +1,2 @@
+echo python-telegram-bot==20.8 > requirements.txt
+echo openai==1.14.3 >> requirements.txt

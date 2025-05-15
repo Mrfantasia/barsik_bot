@@ -1,13 +1,13 @@
 import os
-import asyncio
 import openai
 from flask import Flask
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 from dotenv import load_dotenv
+import threading
 
-# Load env variables
 load_dotenv()
+
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 openai.api_key = OPENAI_API_KEY
@@ -28,6 +28,9 @@ def home():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("😼 Yo! I'm Barsik – the meme lord. Ask me anything.")
 
+async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("✅ Pong!")
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     await update.message.chat.send_action(action="typing")
@@ -43,17 +46,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply = response["choices"][0]["message"]["content"]
         await update.message.reply_text(reply)
     except Exception as e:
-        await update.message.reply_text("⚠️ Barsik is having a bad meme day. Try again later.")
+        await update.message.reply_text("⚠️ Barsik is having a bad meme day.")
         print("OpenAI Error:", e)
 
-async def main():
-    app = Application.builder().token(TELEGRAM_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+def run_bot():
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("ping", ping))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     print("🐾 Barsik Meme Bot is running via polling...")
-    await app.run_polling()
+    application.run_polling(allowed_updates=Update.ALL_TYPES, close_loop=False)
 
 if __name__ == "__main__":
-    import threading
-    threading.Thread(target=lambda: flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))).start()
-    asyncio.run(main())
+    threading.Thread(target=run_bot).start()
+    flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))

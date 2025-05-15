@@ -67,18 +67,29 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
         traceback.print_exc()
 
 # === Bot launcher ===
+from telegram.ext import Application
+
+# === Bot launcher with Webhook ===
 if __name__ == '__main__':
     import os
 
-    # Fake port to satisfy Render's health check (Render Free workaround)
-    os.environ["PORT"] = "10000"
+    # === Load from environment or fallback ===
+    TOKEN = TELEGRAM_TOKEN
+    APP_URL = os.getenv("RENDER_EXTERNAL_URL")
 
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    app = Application.builder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(InlineQueryHandler(inline_query))
 
-    print("🐾 Barsik inline hybrid is live!")
-    app.run_polling()
+    print("🌐 Setting webhook for Barsik...")
+
+    # Set webhook
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", 10000)),
+        webhook_url=f"{APP_URL}/webhook"
+    )
+
 
 

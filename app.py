@@ -1,6 +1,7 @@
 import os
 import asyncio
 import openai
+from openai import OpenAI
 from flask import Flask
 from telegram import Update
 from telegram.ext import (
@@ -17,12 +18,11 @@ load_dotenv()
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-openai.api_key = OPENAI_API_KEY
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 BARSIK_STYLE = (
-    "You are Barsik, Hasbulla’s cat. You answer like a friendly, funny, and unpredictable chatbot. "
-    "You never repeat the same reply, you respond naturally and varied, "
-    "using slang, emojis, jokes, and casual talk. Be lively and creative."
+    "You are Barsik, Hasbulla’s cat. You respond like a witty, funny chatbot with slang and emojis. "
+    "Keep replies fresh and never repeat exactly the same."
 )
 
 flask_app = Flask(__name__)
@@ -39,12 +39,12 @@ async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def generate_image(prompt: str) -> str:
     try:
-        response = openai.Image.create(
+        response = client.images.generate(
             prompt=prompt,
             n=1,
             size="512x512"
         )
-        return response['data'][0]['url']
+        return response.data[0].url
     except Exception as e:
         print("Image generation error:", e)
         return None
@@ -67,7 +67,7 @@ async def chat_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     await update.message.chat.send_action(action="typing")
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": BARSIK_STYLE},
@@ -79,7 +79,7 @@ async def chat_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             frequency_penalty=0.5,
             presence_penalty=0.6,
         )
-        reply = response["choices"][0]["message"]["content"]
+        reply = response.choices[0].message.content
         await update.message.reply_text(reply)
     except Exception as e:
         await update.message.reply_text("⚠️ Barsik is having a bad meme day.")
@@ -106,3 +106,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

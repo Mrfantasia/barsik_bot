@@ -1,16 +1,15 @@
 import os
-from telegram import Update, InlineQueryResultArticle, InputTextMessageContent, InlineQueryResultPhoto
-from telegram.ext import ApplicationBuilder, CommandHandler, InlineQueryHandler, ContextTypes
-import openai
 import uuid
-import traceback
+import openai
+from telegram import Update, InlineQueryResultArticle, InputTextMessageContent, InlineQueryResultPhoto
+from telegram.ext import Application, CommandHandler, InlineQueryHandler, ContextTypes
 
-# Leggi API keys dalle variabili ambiente (Render)
+# === API keys from environment ===
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 openai.api_key = OPENAI_API_KEY
 
-# Stile di Barsik
+# === Barsik style ===
 BARSIK_STYLE = (
     "You are Barsik, Hasbulla’s cat. You speak with Hasbulla-style attitude: funny, cocky, unpredictable. "
     "You're full of energy, sarcasm, and playful arrogance. You joke like a social media star, throw light insults, "
@@ -26,14 +25,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "   → I’ll roast you, meme-style 😹\n"
         "🎨 Start your message with 'draw', 'image', or 'paint' → I’ll generate an image\n\n"
         "Let’s cause some chaos 😼🔥"
-    
     )
 
-# Modalità inline (text o image)
+# === Inline query handler ===
 async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.inline_query.query.strip()
     if not query:
         return
+
     try:
         if query.lower().startswith(("draw", "image", "paint", "generate")):
             response = openai.Image.create(prompt=query, n=1, size="512x512")
@@ -47,7 +46,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.inline_query.answer([result], cache_time=30)
         else:
             response = openai.ChatCompletion.create(
-                model="gpt-4-turbo",
+                model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": BARSIK_STYLE},
                     {"role": "user", "content": query}
@@ -64,32 +63,19 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             await update.inline_query.answer([result], cache_time=30)
     except Exception as e:
-        traceback.print_exc()
+        print(f"Error: {e}")
 
-# === Bot launcher ===
-from telegram.ext import Application
-
-# === Bot launcher with Webhook ===
+# === Webhook setup ===
 if __name__ == '__main__':
-    import os
-
-    # === Load from environment or fallback ===
-    TOKEN = TELEGRAM_TOKEN
     APP_URL = os.getenv("RENDER_EXTERNAL_URL")
 
-    app = Application.builder().token(TOKEN).build()
-
+    app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(InlineQueryHandler(inline_query))
 
     print("🌐 Setting webhook for Barsik...")
-
-    # Set webhook
     app.run_webhook(
         listen="0.0.0.0",
         port=int(os.environ.get("PORT", 10000)),
         webhook_url=f"{APP_URL}/webhook"
     )
-
-
-

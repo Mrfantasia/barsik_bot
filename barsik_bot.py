@@ -69,12 +69,16 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # === Bot launcher ===
 if __name__ == '__main__':
     import os
-    os.environ["PORT"] = "10000"  # Fake port to satisfy Render's health check
+
+    # Fake port to satisfy Render's health check (Render Free workaround)
+    os.environ["PORT"] = "10000"
 
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(InlineQueryHandler(inline_query))
 
     print("🐾 Barsik inline hybrid is live!")
     app.run_polling()
+
 

@@ -4,12 +4,12 @@ import openai
 from telegram import Update, InlineQueryResultArticle, InputTextMessageContent, InlineQueryResultPhoto
 from telegram.ext import Application, CommandHandler, InlineQueryHandler, ContextTypes
 
-# === API keys from environment ===
+# API keys from environment
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 openai.api_key = OPENAI_API_KEY
 
-# === Barsik style ===
+# Barsik personality
 BARSIK_STYLE = (
     "You are Barsik, Hasbulla’s cat. You speak with Hasbulla-style attitude: funny, cocky, unpredictable. "
     "You're full of energy, sarcasm, and playful arrogance. You joke like a social media star, throw light insults, "
@@ -17,7 +17,7 @@ BARSIK_STYLE = (
     "Always reply in English. Keep it short, bold, and hilarious. Use slang, emojis, and a confident tone."
 )
 
-# === /start command ===
+# /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "😼 Meow! I’m Barsik, Hasbulla’s cat.\n\n"
@@ -27,7 +27,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Let’s cause some chaos 😼🔥"
     )
 
-# === Inline query handler ===
+# Inline query handler
 async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.inline_query.query.strip()
     if not query:
@@ -65,7 +65,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         print(f"Error: {e}")
 
-# === Webhook setup ===
+# Webhook setup
 if __name__ == '__main__':
     APP_URL = os.getenv("RENDER_EXTERNAL_URL")
 
@@ -78,6 +78,6 @@ if __name__ == '__main__':
     app.run_webhook(
         listen="0.0.0.0",
         port=int(os.environ.get("PORT", 10000)),
-        webhook_path="/webhook",  # Questo è il punto fondamentale!
+        webhook_path="/webhook",
         webhook_url=f"{APP_URL}/webhook"
     )

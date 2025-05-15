@@ -18,12 +18,16 @@ BARSIK_STYLE = (
     "Always reply in English. Keep it short, bold, and hilarious. Use slang, emojis, and a confident tone."
 )
 
-# Comando /start
+# === /start command ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "😼 Meow! I’m Barsik, Hasbulla’s cat. Type @BarsikBot followed by a message in any chat:\n\n"
-        "💬 Normal prompt → Barsik replies in chat\n"
-        "🎨 Prompt starting with 'draw', 'image', or 'paint' → Barsik creates an image"
+        "😼 Meow! I’m Barsik, Hasbulla’s cat.\n\n"
+        "💬 Type @BarsikMemeBot followed by any message in any chat:\n"
+        "   → I’ll roast you, meme-style 😹\n"
+        "🎨 Start your message with 'draw', 'image', or 'paint' → I’ll generate an image\n\n"
+        "Let’s cause some chaos 😼🔥"
+    )
+
     )
 
 # Modalità inline (text o image)

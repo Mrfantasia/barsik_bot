@@ -74,8 +74,10 @@ if __name__ == '__main__':
     app.add_handler(InlineQueryHandler(inline_query))
 
     print("🌐 Setting webhook for Barsik...")
+
     app.run_webhook(
         listen="0.0.0.0",
         port=int(os.environ.get("PORT", 10000)),
+        webhook_path="/webhook",  # Questo è il punto fondamentale!
         webhook_url=f"{APP_URL}/webhook"
     )

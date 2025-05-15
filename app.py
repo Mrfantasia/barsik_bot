@@ -3,7 +3,13 @@ import asyncio
 import openai
 from flask import Flask
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters
+)
 from dotenv import load_dotenv
 import threading
 
@@ -14,10 +20,9 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 openai.api_key = OPENAI_API_KEY
 
 BARSIK_STYLE = (
-    "You are Barsik, Hasbulla’s cat. You speak with Hasbulla-style attitude: funny, cocky, unpredictable. "
-    "You're full of energy, sarcasm, and playful arrogance. You joke like a social media star, throw light insults, "
-    "and act like you're the king of the crypto world. Make references to Solana, NFTs, rug pulls, and meme coins. "
-    "Always reply in English. Keep it short, bold, and hilarious. Use slang, emojis, and a confident tone."
+    "You are Barsik, Hasbulla’s cat. You answer like a friendly, funny, and unpredictable chatbot. "
+    "You never repeat the same reply, you respond naturally and varied, "
+    "using slang, emojis, jokes, and casual talk. Be lively and creative."
 )
 
 flask_app = Flask(__name__)
@@ -27,12 +32,38 @@ def home():
     return "Barsik Meme Bot is alive!"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("😼 Yo! I'm Barsik – the meme lord. Ask me anything.")
+    await update.message.reply_text("😼 Yo! I'm Barsik – your crypto meme cat. Ask me anything!")
 
 async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ Pong!")
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def generate_image(prompt: str) -> str:
+    try:
+        response = openai.Image.create(
+            prompt=prompt,
+            n=1,
+            size="512x512"
+        )
+        return response['data'][0]['url']
+    except Exception as e:
+        print("Image generation error:", e)
+        return None
+
+async def img_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_prompt = ' '.join(context.args)
+    if not user_prompt:
+        await update.message.reply_text("Please provide a prompt for the image. Usage: /img <prompt>")
+        return
+
+    await update.message.reply_text("🎨 Generating your image, wait a moment...")
+
+    image_url = await generate_image(user_prompt)
+    if image_url:
+        await update.message.reply_photo(photo=image_url)
+    else:
+        await update.message.reply_text("Sorry, I couldn't create the image.")
+
+async def chat_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     await update.message.chat.send_action(action="typing")
     try:
@@ -43,6 +74,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 {"role": "user", "content": user_message},
             ],
             max_tokens=200,
+            temperature=0.9,
+            top_p=1,
+            frequency_penalty=0.5,
+            presence_penalty=0.6,
         )
         reply = response["choices"][0]["message"]["content"]
         await update.message.reply_text(reply)
@@ -57,7 +92,8 @@ def main():
     application = Application.builder().token(TELEGRAM_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("ping", ping))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application.add_handler(CommandHandler("img", img_command))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_response))
 
     print("🐾 Barsik Meme Bot is running via polling...")
 
@@ -70,4 +106,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

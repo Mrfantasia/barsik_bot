@@ -26,8 +26,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "   → I’ll roast you, meme-style 😹\n"
         "🎨 Start your message with 'draw', 'image', or 'paint' → I’ll generate an image\n\n"
         "Let’s cause some chaos 😼🔥"
-    )
-
+    
     )
 
 # Modalità inline (text o image)

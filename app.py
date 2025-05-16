@@ -1,7 +1,6 @@
 import os
 import asyncio
 import openai
-from openai import OpenAI
 import requests
 from flask import Flask
 from telegram import Update
@@ -16,25 +15,27 @@ from dotenv import load_dotenv
 import threading
 import logging
 
+# Setup
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
-
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+openai.api_key = OPENAI_API_KEY
 
-client = OpenAI(api_key=OPENAI_API_KEY)
-
+# Bot personality
 BARSIK_STYLE = (
     "You are Barsik, Hasbulla’s cat. You respond like a witty, funny chatbot with slang and emojis. "
     "Keep replies fresh and never repeat exactly the same."
 )
 
+# Flask setup
 flask_app = Flask(__name__)
 
 @flask_app.route("/")
 def home():
     return "Barsik Meme Bot is alive!"
 
+# Commands
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
         "😼 Yo! I'm Barsik, Hasbulla's cat 🐾 and a token on the Solana blockchain! 🚀\n\n"
@@ -52,7 +53,8 @@ async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def generate_image(prompt: str) -> str:
     try:
-        response = client.images.generate(
+        response = openai.images.generate(
+            model="dall-e-2",
             prompt=prompt,
             n=1,
             size="512x512"
@@ -79,7 +81,7 @@ async def chat_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     await update.message.chat.send_action(action="typing")
     try:
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": BARSIK_STYLE},
@@ -91,12 +93,13 @@ async def chat_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             frequency_penalty=0.5,
             presence_penalty=0.6,
         )
-        reply = response.choices[0].message.content
+        reply = response["choices"][0]["message"]["content"]
         await update.message.reply_text(reply)
     except Exception as e:
         logging.error("OpenAI Error: %s", e)
         await update.message.reply_text("⚠️ Barsik is having a bad meme day.")
 
+# CoinGecko API utilities
 def get_token_price_coingecko(token_id: str):
     url = "https://api.coingecko.com/api/v3/simple/price"
     params = {
@@ -142,7 +145,7 @@ def get_top10_prices():
         data = response.json()
         prices = [f"{coin['name']} ({coin['symbol'].upper()}): ${coin['current_price']:.4f}" for coin in data]
 
-        # Aggiungiamo Barsik alla lista
+        # Add Barsik
         barsik = get_token_price_coingecko("hasbulla-s-cat")
         if barsik:
             prices.append(f"Barsik (HASBULLA-S-CAT): ${barsik:.6f}")
@@ -163,16 +166,9 @@ async def cryptoprices_command(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text("⚠️ Could not fetch crypto prices right now.")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    help_text = (
-        "🐾 Barsik Bot Commands 🐾\n\n"
-        "/start - Start the bot and get this greeting\n"
-        "/img <prompt> - Generate an image based on the prompt\n"
-        "/barsikprice - Get the current price of Barsik token\n"
-        "/cryptoprices - Show prices of top 10 coins + Barsik\n"
-        "/help - Show this help message\n"
-    )
-    await update.message.reply_text(help_text)
+    await start(update, context)
 
+# Start server
 def run_flask():
     flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
 
@@ -190,11 +186,8 @@ def main():
 
     loop = asyncio.get_event_loop()
     loop.create_task(application.run_polling())
-
     threading.Thread(target=run_flask).start()
     loop.run_forever()
 
 if __name__ == "__main__":
     main()
-
-

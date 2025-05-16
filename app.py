@@ -2,6 +2,7 @@ import os
 import asyncio
 import openai
 from openai import OpenAI
+import requests
 from flask import Flask
 from telegram import Update
 from telegram.ext import (
@@ -18,6 +19,8 @@ load_dotenv()
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+COINMARKET_API_KEY = os.getenv("COINMARKET_API_KEY")
+
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 BARSIK_STYLE = (
@@ -85,6 +88,35 @@ async def chat_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ Barsik is having a bad meme day.")
         print("OpenAI Error:", e)
 
+def get_token_price(contract_address: str):
+    url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
+    headers = {
+        "X-CMC_PRO_API_KEY": COINMARKET_API_KEY,
+        "Accepts": "application/json",
+    }
+    params = {
+        "contract_address": contract_address,
+        "convert": "USD"
+    }
+    response = requests.get(url, headers=headers, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        try:
+            price = data["data"][contract_address]["quote"]["USD"]["price"]
+            return price
+        except KeyError:
+            return None
+    else:
+        return None
+
+async def barsik_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    contract = "7ZqzGzTNg5tjK1CHTBdGFHyKjBtXdfvAobuGgdt4pump"  # Barsik token contract address
+    price = get_token_price(contract)
+    if price:
+        await update.message.reply_text(f"🐾 The current Barsik token price is ${price:.6f} USD")
+    else:
+        await update.message.reply_text("⚠️ Sorry, I couldn't fetch Barsik token price right now.")
+
 def run_flask():
     flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
 
@@ -93,6 +125,7 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("ping", ping))
     application.add_handler(CommandHandler("img", img_command))
+    application.add_handler(CommandHandler("barsikprice", barsik_price))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_response))
 
     print("🐾 Barsik Meme Bot is running via polling...")

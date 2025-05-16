@@ -19,7 +19,6 @@ load_dotenv()
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-COINMARKET_API_KEY = os.getenv("COINMARKET_API_KEY")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -35,7 +34,16 @@ def home():
     return "Barsik Meme Bot is alive!"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("😼 Yo! I'm Barsik – your crypto meme cat. Ask me anything!")
+    help_text = (
+        "😼 Yo! I'm Barsik, Hasbulla's cat 🐾 and a token on the Solana blockchain! 🚀\n\n"
+        "Try these commands:\n"
+        "/start - Start the bot and get this greeting\n"
+        "/img <prompt> - Generate an image based on the prompt\n"
+        "/barsikprice - Get the current price of Barsik token\n"
+        "/cryptoprices - Show prices of top 10 coins + Barsik\n"
+        "/help - Show this help message\n"
+    )
+    await update.message.reply_text(help_text)
 
 async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ Pong!")
@@ -88,34 +96,69 @@ async def chat_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ Barsik is having a bad meme day.")
         print("OpenAI Error:", e)
 
-def get_token_price(contract_address: str):
-    url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
-    headers = {
-        "X-CMC_PRO_API_KEY": COINMARKET_API_KEY,
-        "Accepts": "application/json",
-    }
+def get_token_price_coingecko(token_id: str):
+    url = "https://api.coingecko.com/api/v3/simple/price"
     params = {
-        "contract_address": contract_address,
-        "convert": "USD"
+        "ids": token_id,
+        "vs_currencies": "usd"
     }
-    response = requests.get(url, headers=headers, params=params)
+    response = requests.get(url, params=params)
     if response.status_code == 200:
         data = response.json()
-        try:
-            price = data["data"][contract_address]["quote"]["USD"]["price"]
-            return price
-        except KeyError:
-            return None
-    else:
-        return None
+        return data.get(token_id, {}).get("usd", None)
+    return None
 
 async def barsik_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    contract = "7ZqzGzTNg5tjK1CHTBdGFHyKjBtXdfvAobuGgdt4pump"  # Barsik token contract address
-    price = get_token_price(contract)
+    token_id = "hasbulla-s-cat"  # ID corretto su CoinGecko
+    price = get_token_price_coingecko(token_id)
     if price:
         await update.message.reply_text(f"🐾 The current Barsik token price is ${price:.6f} USD")
     else:
         await update.message.reply_text("⚠️ Sorry, I couldn't fetch Barsik token price right now.")
+
+def get_top10_prices():
+    url = "https://api.coingecko.com/api/v3/coins/markets"
+    params = {
+        "vs_currency": "usd",
+        "order": "market_cap_desc",
+        "per_page": 10,
+        "page": 1,
+        "sparkline": "false"
+    }
+    response = requests.get(url, params=params)
+    prices = []
+    if response.status_code == 200:
+        data = response.json()
+        for coin in data:
+            prices.append(f"{coin['name']} ({coin['symbol'].upper()}): ${coin['current_price']:.4f}")
+    else:
+        return None
+    # Aggiungi Barsik
+    barsik_price = get_token_price_coingecko("hasbulla-s-cat")
+    if barsik_price:
+        prices.append(f"Barsik (HASBULLA-S-CAT): ${barsik_price:.6f}")
+    else:
+        prices.append("Barsik: price not available")
+    return prices
+
+async def cryptoprices_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    prices = get_top10_prices()
+    if prices:
+        message = "📊 Top 10 Coins by Market Cap + Barsik Token Price:\n\n" + "\n".join(prices)
+        await update.message.reply_text(message)
+    else:
+        await update.message.reply_text("⚠️ Could not fetch crypto prices right now.")
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    help_text = (
+        "🐾 Barsik Bot Commands 🐾\n\n"
+        "/start - Start the bot and get this greeting\n"
+        "/img <prompt> - Generate an image based on the prompt\n"
+        "/barsikprice - Get the current price of Barsik token\n"
+        "/cryptoprices - Show prices of top 10 coins + Barsik\n"
+        "/help - Show this help message\n"
+    )
+    await update.message.reply_text(help_text)
 
 def run_flask():
     flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
@@ -126,6 +169,8 @@ def main():
     application.add_handler(CommandHandler("ping", ping))
     application.add_handler(CommandHandler("img", img_command))
     application.add_handler(CommandHandler("barsikprice", barsik_price))
+    application.add_handler(CommandHandler("cryptoprices", cryptoprices_command))
+    application.add_handler(CommandHandler("help", help_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_response))
 
     print("🐾 Barsik Meme Bot is running via polling...")
@@ -139,4 +184,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

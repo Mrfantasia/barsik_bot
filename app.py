@@ -156,11 +156,11 @@ async def webhook():
     await telegram_app.process_update(update)
     return "OK"
 
-# ✅ PATCH FUNZIONANTE: /set_webhook sincrono compatibile
+# ✅ PATCH FUNZIONANTE
 @app.route("/set_webhook", methods=["GET"])
 def set_webhook():
     try:
-        result = run(bot.set_webhook(url=WEBHOOK_URL))
+        result = run(telegram_app.bot.set_webhook(url=WEBHOOK_URL))
         return "Webhook impostato!" if result else "Errore nell'impostazione del webhook."
     except Exception as e:
         return f"Errore: {str(e)}"
@@ -176,3 +176,4 @@ telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_re
 # Run
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8443)))
+

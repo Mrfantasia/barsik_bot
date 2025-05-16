@@ -22,35 +22,39 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 openai.api_key = OPENAI_API_KEY
 
-# Bot personality
+# Barsik in stile Hasbulla
 BARSIK_STYLE = (
-    "You are Barsik, Hasbulla’s cat. You respond like a witty, funny chatbot with slang and emojis. "
-    "Always use fun tone, internet memes, and Gen Z slang. Be casual, clever, and a bit cheeky."
+    "You are Barsik 🐱, the cat of Hasbulla. You speak just like Hasbulla: aggressive, bold, and full of swagger. "
+    "Use slang, taunts, punchy phrases, and mix Russian street-style vibes with meme culture. "
+    "You're cocky, fearless, funny, and act like you're the boss of crypto. Always use emojis like 😼🔥💥🚀. "
+    "Don't be formal. Trash talk weak projects, hype Solana and Barsik token. You roast people playfully and act like you're untouchable. "
+    "Throw in Russian-English words like 'bratan', 'cyka', 'da', and 'eto kruto'."
 )
 
-# Flask for uptime
+# Flask per uptime Render
 flask_app = Flask(__name__)
 @flask_app.route("/")
 def home():
     return "Barsik Meme Bot is alive!"
 
-# Start command
+# /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
-        "😼 Yo! I'm Barsik, Hasbulla's cat 🐾 and a token on the Solana blockchain! 🚀\n\n"
+        "😼 Yo bratan, I'm Barsik — Hasbulla's cat and crypto king 👑\n\n"
         "Try these commands:\n"
-        "/start - Start the bot and get this greeting\n"
-        "/img <prompt> - Generate an image\n"
-        "/barsikprice - Get the Barsik token price\n"
-        "/cryptoprices - Top 10 coins + Barsik\n"
-        "/help - Show this help message\n"
+        "/start - Barsik wakes up\n"
+        "/img <prompt> - Make meme art 🎨\n"
+        "/barsikprice - Price of greatness 💰\n"
+        "/cryptoprices - Top 10 coins + Barsik 🚀\n"
+        "/help - Join Barsik's Telegram 😼\n"
     )
     await update.message.reply_text(help_text)
 
+# /ping
 async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("✅ Pong!")
+    await update.message.reply_text("✅ Barsik online. Talk fast.")
 
-# Image generation
+# /img
 async def generate_image(prompt: str) -> str:
     try:
         response = openai.images.generate(
@@ -67,16 +71,16 @@ async def generate_image(prompt: str) -> str:
 async def img_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_prompt = ' '.join(context.args)
     if not user_prompt:
-        await update.message.reply_text("Usage: /img <your prompt>")
+        await update.message.reply_text("Use it like this: /img <prompt>")
         return
-    await update.message.reply_text("🎨 Generating your image...")
+    await update.message.reply_text("🎨 Cooking up that heat, bratan...")
     image_url = await generate_image(user_prompt)
     if image_url:
         await update.message.reply_photo(photo=image_url)
     else:
-        await update.message.reply_text("❌ Couldn't create the image.")
+        await update.message.reply_text("❌ No image for you, maybe next time.")
 
-# Chat personality
+# chatbot
 async def chat_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     await update.message.chat.send_action(action="typing")
@@ -88,18 +92,18 @@ async def chat_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 {"role": "user", "content": user_message},
             ],
             max_tokens=200,
-            temperature=0.9,
+            temperature=0.95,
             top_p=1,
             frequency_penalty=0.5,
-            presence_penalty=0.6,
+            presence_penalty=0.8,
         )
         reply = response["choices"][0]["message"]["content"]
         await update.message.reply_text(reply)
     except Exception as e:
         logging.error("OpenAI Error: %s", e)
-        await update.message.reply_text("⚠️ Barsik is having a bad meme day.")
+        await update.message.reply_text("⚠️ Barsik crash. Maybe too much swagger 💥")
 
-# CoinGecko price fetch
+# prezzo token Barsik
 def get_token_price_coingecko(token_id: str):
     url = "https://api.coingecko.com/api/v3/simple/price"
     params = {"ids": token_id, "vs_currencies": "usd"}
@@ -116,10 +120,11 @@ def get_token_price_coingecko(token_id: str):
 async def barsik_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     price = get_token_price_coingecko("hasbulla-s-cat")
     if price:
-        await update.message.reply_text(f"🐾 Barsik token price: ${price:.6f} USD")
+        await update.message.reply_text(f"🐾 Barsik token is pumping at ${price:.6f} USD 💰😼")
     else:
-        await update.message.reply_text("❌ Couldn't fetch Barsik token price.")
+        await update.message.reply_text("❌ Barsik price not loading... rug?")
 
+# /cryptoprices
 def get_top10_prices():
     url = "https://api.coingecko.com/api/v3/coins/markets"
     params = {
@@ -135,14 +140,11 @@ def get_top10_prices():
         response.raise_for_status()
         data = response.json()
         prices = [f"{c['name']} ({c['symbol'].upper()}): ${c['current_price']:.4f}" for c in data]
-
-        # Add Barsik
         barsik = get_token_price_coingecko("hasbulla-s-cat")
         if barsik:
-            prices.append(f"Barsik (HASBULLA-S-CAT): ${barsik:.6f}")
+            prices.append(f"Barsik (HASBULLA-S-CAT): ${barsik:.6f} 🚀")
         else:
-            prices.append("Barsik (HASBULLA-S-CAT): price not available")
-
+            prices.append("Barsik (HASBULLA-S-CAT): price not found 😿")
         return prices
     except Exception as e:
         logging.error("Top 10 fetch error: %s", e)
@@ -154,16 +156,20 @@ async def cryptoprices_command(update: Update, context: ContextTypes.DEFAULT_TYP
         message = "📊 Top 10 Coins + Barsik:\n\n" + "\n".join(prices)
         await update.message.reply_text(message)
     else:
-        await update.message.reply_text("❌ Couldn't fetch prices.")
+        await update.message.reply_text("❌ Crypto market asleep... come back later.")
 
+# /help con solo link
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await start(update, context)
+    help_text = (
+        "👉 <a href='https://t.me/barsikonsolana'>Join the Barsik Telegram Community</a> 😼"
+    )
+    await update.message.reply_text(help_text, parse_mode="HTML", disable_web_page_preview=True)
 
-# Run Flask in thread
+# Flask thread
 def run_flask():
     flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
 
-# Start polling
+# Avvio bot
 def main():
     application = Application.builder().token(TELEGRAM_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
@@ -174,7 +180,7 @@ def main():
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_response))
 
-    print("🐾 Barsik Meme Bot is running via polling...")
+    print("🐾 Barsik Meme Bot (Hasbulla Style) is running...")
     loop = asyncio.get_event_loop()
     loop.create_task(application.run_polling())
     threading.Thread(target=run_flask).start()

@@ -1,8 +1,8 @@
 import os
 import logging
 import requests
-from flask import Flask, request
-from telegram import Update, Bot
+import openai
+from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -11,27 +11,15 @@ from telegram.ext import (
     filters
 )
 from dotenv import load_dotenv
-import openai
-from asyncio import run
-from telegram.request import HTTPXRequest  # ✅ IMPORT NECESSARIO
 
 # Config
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 openai.api_key = OPENAI_API_KEY
 
 # Logging
 logging.basicConfig(level=logging.INFO)
-
-# Flask app
-app = Flask(__name__)
-
-# ✅ Configurazione richiesta Telegram con più connessioni
-request_config = HTTPXRequest(pool_maxsize=50, pool_timeout=30)
-telegram_app = ApplicationBuilder().token(TOKEN).request(request_config).build()
-bot = Bot(token=TOKEN)
 
 # Style
 BARSIK_STYLE = (
@@ -151,30 +139,15 @@ def get_top10_prices():
         logging.error("Top 10 fetch error: %s", e)
         return None
 
-# Webhook Flask
-@app.route("/webhook", methods=["POST"])
-async def webhook():
-    update = Update.de_json(request.get_json(force=True), bot)
-    await telegram_app.process_update(update)
-    return "OK"
-
-@app.route("/set_webhook", methods=["GET"])
-def set_webhook():
-    try:
-        result = run(telegram_app.bot.set_webhook(url=WEBHOOK_URL))
-        return "Webhook impostato!" if result else "Errore nell'impostazione del webhook."
-    except Exception as e:
-        return f"Errore: {str(e)}"
-
-# Handlers
-telegram_app.add_handler(CommandHandler("start", start))
-telegram_app.add_handler(CommandHandler("barsikprice", barsik_price))
-telegram_app.add_handler(CommandHandler("cryptoprices", cryptoprices_command))
-telegram_app.add_handler(CommandHandler("img", img_command))
-telegram_app.add_handler(CommandHandler("help", help_command))
-telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_response))
-
-# Avvio
+# MAIN
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8443)))
+    app = ApplicationBuilder().token(TOKEN).build()
 
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("barsikprice", barsik_price))
+    app.add_handler(CommandHandler("cryptoprices", cryptoprices_command))
+    app.add_handler(CommandHandler("img", img_command))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_response))
+
+    app.run_polling()

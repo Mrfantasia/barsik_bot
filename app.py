@@ -14,8 +14,10 @@ from telegram.ext import (
 )
 from dotenv import load_dotenv
 import threading
+import logging
 
 load_dotenv()
+logging.basicConfig(level=logging.INFO)
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -57,7 +59,7 @@ async def generate_image(prompt: str) -> str:
         )
         return response.data[0].url
     except Exception as e:
-        print("Image generation error:", e)
+        logging.error("Image generation error: %s", e)
         return None
 
 async def img_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -67,7 +69,6 @@ async def img_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await update.message.reply_text("🎨 Generating your image, wait a moment...")
-
     image_url = await generate_image(user_prompt)
     if image_url:
         await update.message.reply_photo(photo=image_url)
@@ -93,8 +94,8 @@ async def chat_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply = response.choices[0].message.content
         await update.message.reply_text(reply)
     except Exception as e:
+        logging.error("OpenAI Error: %s", e)
         await update.message.reply_text("⚠️ Barsik is having a bad meme day.")
-        print("OpenAI Error:", e)
 
 def get_token_price_coingecko(token_id: str):
     url = "https://api.coingecko.com/api/v3/simple/price"
@@ -102,15 +103,21 @@ def get_token_price_coingecko(token_id: str):
         "ids": token_id,
         "vs_currencies": "usd"
     }
-    response = requests.get(url, params=params)
-    if response.status_code == 200:
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "BarsikBot/1.0"
+    }
+    try:
+        response = requests.get(url, params=params, headers=headers, timeout=10)
+        response.raise_for_status()
         data = response.json()
         return data.get(token_id, {}).get("usd", None)
-    return None
+    except Exception as e:
+        logging.error("Error fetching price for %s: %s", token_id, e)
+        return None
 
 async def barsik_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    token_id = "hasbulla-s-cat"  # ID corretto su CoinGecko
-    price = get_token_price_coingecko(token_id)
+    price = get_token_price_coingecko("hasbulla-s-cat")
     if price:
         await update.message.reply_text(f"🐾 The current Barsik token price is ${price:.6f} USD")
     else:
@@ -125,21 +132,27 @@ def get_top10_prices():
         "page": 1,
         "sparkline": "false"
     }
-    response = requests.get(url, params=params)
-    prices = []
-    if response.status_code == 200:
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "BarsikBot/1.0"
+    }
+    try:
+        response = requests.get(url, params=params, headers=headers, timeout=10)
+        response.raise_for_status()
         data = response.json()
-        for coin in data:
-            prices.append(f"{coin['name']} ({coin['symbol'].upper()}): ${coin['current_price']:.4f}")
-    else:
+        prices = [f"{coin['name']} ({coin['symbol'].upper()}): ${coin['current_price']:.4f}" for coin in data]
+
+        # Aggiungiamo Barsik alla lista
+        barsik = get_token_price_coingecko("hasbulla-s-cat")
+        if barsik:
+            prices.append(f"Barsik (HASBULLA-S-CAT): ${barsik:.6f}")
+        else:
+            prices.append("Barsik (HASBULLA-S-CAT): price not available")
+
+        return prices
+    except Exception as e:
+        logging.error("Error fetching top 10 prices: %s", e)
         return None
-    # Aggiungi Barsik
-    barsik_price = get_token_price_coingecko("hasbulla-s-cat")
-    if barsik_price:
-        prices.append(f"Barsik (HASBULLA-S-CAT): ${barsik_price:.6f}")
-    else:
-        prices.append("Barsik: price not available")
-    return prices
 
 async def cryptoprices_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prices = get_top10_prices()
@@ -179,7 +192,6 @@ def main():
     loop.create_task(application.run_polling())
 
     threading.Thread(target=run_flask).start()
-
     loop.run_forever()
 
 if __name__ == "__main__":

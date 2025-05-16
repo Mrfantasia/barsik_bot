@@ -1,7 +1,6 @@
 import os
 import logging
 import requests
-import openai
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -11,12 +10,15 @@ from telegram.ext import (
     filters
 )
 from dotenv import load_dotenv
+from openai import OpenAI  # ✅ nuovo client
 
 # Config
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-openai.api_key = OPENAI_API_KEY
+
+# OpenAI client
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Logging
 logging.basicConfig(level=logging.INFO)
@@ -63,8 +65,8 @@ async def cryptoprices_command(update: Update, context: ContextTypes.DEFAULT_TYP
 # /img
 async def generate_image(prompt: str) -> str:
     try:
-        response = openai.Image.create(prompt=prompt, n=1, size="512x512")
-        return response['data'][0]['url']
+        response = openai_client.images.generate(prompt=prompt, n=1, size="512x512")
+        return response.data[0].url
     except Exception as e:
         logging.error("Image generation error: %s", e)
         return None
@@ -81,12 +83,12 @@ async def img_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("❌ No image for you, maybe next time.")
 
-# Chatbot
+# 🧠 Chatbot (nuova sintassi OpenAI)
 async def chat_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
+        response = openai_client.chat.completions.create(
+            model="gpt-4",  # oppure gpt-3.5-turbo
             messages=[
                 {"role": "system", "content": BARSIK_STYLE},
                 {"role": "user", "content": user_message},
@@ -97,7 +99,7 @@ async def chat_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             frequency_penalty=0.5,
             presence_penalty=0.8,
         )
-        reply = response["choices"][0]["message"]["content"]
+        reply = response.choices[0].message.content
         await update.message.reply_text(reply)
     except Exception as e:
         logging.error("OpenAI Error: %s", e)
@@ -151,3 +153,4 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_response))
 
     app.run_polling()
+

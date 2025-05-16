@@ -2,34 +2,35 @@ import os
 import logging
 import requests
 from flask import Flask, request
-from telegram import Bot, Update
+from telegram import Update, Bot
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
     ContextTypes,
     MessageHandler,
-    filters,
-    Dispatcher,
+    filters
 )
 from dotenv import load_dotenv
 import openai
 
-# Carica le variabili d'ambiente
+# Config
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # Es. https://tuo-dominio.com/webhook
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 openai.api_key = OPENAI_API_KEY
 
-# Configura il logging
+# Logging
 logging.basicConfig(level=logging.INFO)
 
-# Inizializza il bot e Flask
-bot = Bot(token=TOKEN)
+# Flask app
 app = Flask(__name__)
-dispatcher = Dispatcher(bot=bot, update_queue=None, workers=4)
 
-# Stile Hasbulla per Barsik
+# Telegram app (async handler)
+telegram_app = ApplicationBuilder().token(TOKEN).build()
+bot = Bot(token=TOKEN)
+
+# Style
 BARSIK_STYLE = (
     "You are Barsik 🐱, the cat of Hasbulla. You speak just like Hasbulla: aggressive, bold, and full of swagger. "
     "Use slang, taunts, punchy phrases, and mix Russian street-style vibes with meme culture. "
@@ -38,9 +39,9 @@ BARSIK_STYLE = (
     "Throw in Russian-English words like 'bratan', 'cyka', 'da', and 'eto kruto'."
 )
 
-# Comando /start
+# /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    help_text = (
+    message = (
         "😼 Yo bratan, I'm Barsik — Hasbulla's cat and crypto king 👑\n\n"
         "Try these commands:\n"
         "/start - Barsik wakes up\n"
@@ -49,9 +50,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/cryptoprices - Top 10 coins + Barsik 🚀\n"
         "/help - Join Barsik's Telegram 😼\n"
     )
-    await update.message.reply_text(help_text)
+    await update.message.reply_text(message)
 
-# Comando /barsikprice
+# /barsikprice
 async def barsik_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     price = get_token_price_coingecko("hasbulla-s-cat")
     if price:
@@ -59,7 +60,7 @@ async def barsik_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("❌ Barsik price not loading... rug?")
 
-# Comando /cryptoprices
+# /cryptoprices
 async def cryptoprices_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prices = get_top10_prices()
     if prices:
@@ -68,14 +69,10 @@ async def cryptoprices_command(update: Update, context: ContextTypes.DEFAULT_TYP
     else:
         await update.message.reply_text("❌ Crypto market asleep... come back later.")
 
-# Comando /img
+# /img
 async def generate_image(prompt: str) -> str:
     try:
-        response = openai.Image.create(
-            prompt=prompt,
-            n=1,
-            size="512x512"
-        )
+        response = openai.Image.create(prompt=prompt, n=1, size="512x512")
         return response['data'][0]['url']
     except Exception as e:
         logging.error("Image generation error: %s", e)
@@ -93,7 +90,7 @@ async def img_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("❌ No image for you, maybe next time.")
 
-# Risposta chatbot
+# Chatbot
 async def chat_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     try:
@@ -115,13 +112,19 @@ async def chat_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logging.error("OpenAI Error: %s", e)
         await update.message.reply_text("⚠️ Barsik crash. Maybe too much swagger 💥")
 
-# Funzioni per ottenere i prezzi
+# /help
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "👉 <a href='https://t.me/barsikonsolana'>Join the Barsik Telegram Community</a> 😼",
+        parse_mode="HTML", disable_web_page_preview=True
+    )
+
+# Funzioni prezzi
 def get_token_price_coingecko(token_id: str):
     url = "https://api.coingecko.com/api/v3/simple/price"
     params = {"ids": token_id, "vs_currencies": "usd"}
-    headers = {"Accept": "application/json", "User-Agent": "BarsikBot/1.0"}
     try:
-        response = requests.get(url, params=params, headers=headers, timeout=10)
+        response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
         return data.get(token_id, {}).get("usd", None)
@@ -131,56 +134,41 @@ def get_token_price_coingecko(token_id: str):
 
 def get_top10_prices():
     url = "https://api.coingecko.com/api/v3/coins/markets"
-    params = {
-        "vs_currency": "usd",
-        "order": "market_cap_desc",
-        "per_page": 10,
-        "page": 1,
-        "sparkline": "false"
-    }
-    headers = {"Accept": "application/json", "User-Agent": "BarsikBot/1.0"}
+    params = {"vs_currency": "usd", "order": "market_cap_desc", "per_page": 10, "page": 1}
     try:
-        response = requests.get(url, params=params, headers=headers, timeout=10)
+        response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
         prices = [f"{c['name']} ({c['symbol'].upper()}): ${c['current_price']:.4f}" for c in data]
         barsik = get_token_price_coingecko("hasbulla-s-cat")
         if barsik:
             prices.append(f"Barsik (HASBULLA-S-CAT): ${barsik:.6f} 🚀")
-        else:
-            prices.append("Barsik (HASBULLA-S-CAT): price not found 😿")
         return prices
     except Exception as e:
         logging.error("Top 10 fetch error: %s", e)
         return None
 
-# Comando /help
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    help_text = (
-        "👉 <a href='https://t.me/barsikonsolana'>Join the Barsik Telegram Community</a> 😼"
-    )
-    await update.message.reply_text(help_text, parse_mode="HTML", disable_web_page_preview=True)
-
-# Endpoint per il webhook
+# Flask webhook
 @app.route("/webhook", methods=["POST"])
-def webhook():
+async def webhook():
     update = Update.de_json(request.get_json(force=True), bot)
-    dispatcher.process_update(update)
+    await telegram_app.process_update(update)
     return "OK"
 
-# Imposta il webhook
+# Set webhook manual
 @app.route("/set_webhook", methods=["GET"])
 def set_webhook():
     success = bot.set_webhook(url=WEBHOOK_URL)
     return "Webhook impostato!" if success else "Errore nell'impostazione del webhook."
 
-# Aggiungi i gestori
-dispatcher.add_handler(CommandHandler("start", start))
-dispatcher.add_handler(CommandHandler("barsikprice", barsik_price))
-dispatcher.add_handler(CommandHandler("cryptoprices", cryptoprices_command))
-dispatcher.add_handler(CommandHandler("img", img_command))
-dispatcher.add_handler(CommandHandler("help", help_command))
-dispatcher.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_response))
+# Handlers
+telegram_app.add_handler(CommandHandler("start", start))
+telegram_app.add_handler(CommandHandler("barsikprice", barsik_price))
+telegram_app.add_handler(CommandHandler("cryptoprices", cryptoprices_command))
+telegram_app.add_handler(CommandHandler("img", img_command))
+telegram_app.add_handler(CommandHandler("help", help_command))
+telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_response))
 
+# Run
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8443)))

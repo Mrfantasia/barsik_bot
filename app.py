@@ -13,6 +13,7 @@ from telegram.ext import (
 from dotenv import load_dotenv
 import openai
 from asyncio import run
+from telegram.request import HTTPXRequest  # ✅ IMPORT NECESSARIO
 
 # Config
 load_dotenv()
@@ -27,8 +28,9 @@ logging.basicConfig(level=logging.INFO)
 # Flask app
 app = Flask(__name__)
 
-# Telegram app (async handler)
-telegram_app = ApplicationBuilder().token(TOKEN).build()
+# ✅ Configurazione richiesta Telegram con più connessioni
+request_config = HTTPXRequest(pool_maxsize=50, pool_timeout=30)
+telegram_app = ApplicationBuilder().token(TOKEN).request(request_config).build()
 bot = Bot(token=TOKEN)
 
 # Style
@@ -120,7 +122,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML", disable_web_page_preview=True
     )
 
-# Funzioni prezzi
+# Prezzi
 def get_token_price_coingecko(token_id: str):
     url = "https://api.coingecko.com/api/v3/simple/price"
     params = {"ids": token_id, "vs_currencies": "usd"}
@@ -149,14 +151,13 @@ def get_top10_prices():
         logging.error("Top 10 fetch error: %s", e)
         return None
 
-# Flask webhook
+# Webhook Flask
 @app.route("/webhook", methods=["POST"])
 async def webhook():
     update = Update.de_json(request.get_json(force=True), bot)
     await telegram_app.process_update(update)
     return "OK"
 
-# ✅ PATCH FUNZIONANTE
 @app.route("/set_webhook", methods=["GET"])
 def set_webhook():
     try:
@@ -173,7 +174,7 @@ telegram_app.add_handler(CommandHandler("img", img_command))
 telegram_app.add_handler(CommandHandler("help", help_command))
 telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_response))
 
-# Run
+# Avvio
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8443)))
 

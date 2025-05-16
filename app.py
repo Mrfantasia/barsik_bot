@@ -12,6 +12,7 @@ from telegram.ext import (
 )
 from dotenv import load_dotenv
 import openai
+from asyncio import run
 
 # Config
 load_dotenv()
@@ -155,11 +156,14 @@ async def webhook():
     await telegram_app.process_update(update)
     return "OK"
 
-# Set webhook manual
+# ✅ PATCH FUNZIONANTE: /set_webhook sincrono compatibile
 @app.route("/set_webhook", methods=["GET"])
-async def set_webhook():
-    success = await bot.set_webhook(url=WEBHOOK_URL)
-    return "Webhook impostato!" if success else "Errore nell'impostazione del webhook."
+def set_webhook():
+    try:
+        result = run(bot.set_webhook(url=WEBHOOK_URL))
+        return "Webhook impostato!" if result else "Errore nell'impostazione del webhook."
+    except Exception as e:
+        return f"Errore: {str(e)}"
 
 # Handlers
 telegram_app.add_handler(CommandHandler("start", start))

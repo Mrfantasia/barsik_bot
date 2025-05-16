@@ -157,8 +157,8 @@ async def webhook():
 
 # Set webhook manual
 @app.route("/set_webhook", methods=["GET"])
-def set_webhook():
-    success = bot.set_webhook(url=WEBHOOK_URL)
+async def set_webhook():
+    success = await bot.set_webhook(url=WEBHOOK_URL)
     return "Webhook impostato!" if success else "Errore nell'impostazione del webhook."
 
 # Handlers
